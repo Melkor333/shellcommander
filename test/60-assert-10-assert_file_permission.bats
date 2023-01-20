@@ -8,7 +8,6 @@ setup () {
   chmod 777 ${TEST_FIXTURE_ROOT}/dir/permission
 }
 teardown () {
-  
   rm -f ${TEST_FIXTURE_ROOT}/dir/permission
 }
 

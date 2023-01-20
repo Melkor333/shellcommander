@@ -9,7 +9,6 @@ setup () {
   chmod 644 ${TEST_FIXTURE_ROOT}/dir/nopermission
 }
 teardown () {
-  
   rm -f ${TEST_FIXTURE_ROOT}/dir/permission ${TEST_FIXTURE_ROOT}/dir/nopermission
 }
 
