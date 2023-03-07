@@ -444,13 +444,13 @@ assert_sticky_bit() {
 
 _bats_file_readlinkf_macos() {
   local TARGET_FILE=$1
-  cd "$(dirname "$TARGET_FILE")"  || return
+  cd "$(dirname "$TARGET_FILE")" 2>/dev/null || return
   TARGET_FILE=$(basename "$TARGET_FILE")
   # Iterate down a (possible) chain of symlinks
   while [ -L "$TARGET_FILE" ]
   do
     TARGET_FILE=$(readlink "$TARGET_FILE")
-    cd "$(dirname "$TARGET_FILE")" || return
+    cd "$(dirname "$TARGET_FILE")" 2>/dev/null || return
     TARGET_FILE=$(basename "$TARGET_FILE")
   done
   # Compute the canonicalized name by finding the physical path
@@ -489,7 +489,8 @@ assert_symlink_to() {
   fi
 
   local -r realsource=$( "${readlink_command[@]}" "$link" )
-  if [ ! "$realsource" = "$sourcefile"  ]; then
+  local -r realexpectedsource=$( "${readlink_command[@]}" "$sourcefile" )
+  if [ ! "$realsource" = "$realexpectedsource"  ]; then
     local -r rem="${BATSLIB_FILE_PATH_REM-}"
     local -r add="${BATSLIB_FILE_PATH_ADD-}"
     batslib_print_kv_single 4 'path' "${link/$rem/$add}" \
