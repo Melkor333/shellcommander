@@ -488,9 +488,9 @@ assert_symlink_to() {
       | fail
   fi
 
-  local -r realsource=$( "${readlink_command[@]}" "$link" )
-  local -r realexpectedsource=$( "${readlink_command[@]}" "$sourcefile" )
-  if [ ! "$realsource" = "$realexpectedsource"  ]; then
+  local realsource; realsource=$( "${readlink_command[@]}" "$link" )
+  local realexpectedsource; realexpectedsource=$( "${readlink_command[@]}" "$sourcefile" )
+  if [ ! "${realsource}" = "${realexpectedsource}"  ]; then
     local -r rem="${BATSLIB_FILE_PATH_REM-}"
     local -r add="${BATSLIB_FILE_PATH_ADD-}"
     batslib_print_kv_single 4 'path' "${link/$rem/$add}" \
