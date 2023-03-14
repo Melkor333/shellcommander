@@ -488,8 +488,8 @@ assert_symlink_to() {
       | fail
   fi
 
-  local realsource; realsource=$( "${readlink_command[@]}" "$link" )
-  local realexpectedsource; realexpectedsource=$( "${readlink_command[@]}" "$sourcefile" )
+  local realsource; realsource=$( "${readlink_command[@]}" "$link" ); readonly realsource
+  local realexpectedsource; realexpectedsource=$( "${readlink_command[@]}" "$sourcefile" ); readonly realexpectedsource
   if [ ! "${realsource}" = "${realexpectedsource}"  ]; then
     local -r rem="${BATSLIB_FILE_PATH_REM-}"
     local -r add="${BATSLIB_FILE_PATH_ADD-}"
