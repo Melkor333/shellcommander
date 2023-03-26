@@ -543,7 +543,7 @@ assert_file_contains() {
   if ! grep -q "$regex" "$file"; then
     local -r rem="${BATSLIB_FILE_PATH_REM-}"
     local -r add="${BATSLIB_FILE_PATH_ADD-}"
-    batslib_print_kv_single 4 'path' "${file/$rem/$add}" \
+    batslib_print_kv_single 4 'path' "${file/$rem/$add}" 'regex' "$regex" \
       | batslib_decorate 'file does not contain regex' \
       | fail
   fi
