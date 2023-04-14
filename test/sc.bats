@@ -8,13 +8,19 @@ setup() {
     DIR="$( cd "$( dirname "$BATS_TEST_FILENAME" )" >/dev/null 2>&1 && pwd )"
     # make executables in src/ visible to PATH
     PATH="$DIR/..:$PATH"
-
-    source sc
-    init
+    # set up (even when we test that lateron :D )
+    eval "$(sc init)"
 }
 
 teardown(){
     rm -rf "$SC_PATH"
+}
+
+
+@test "test init" {
+    run sc init /tmp/SC_BATS_TEST
+    assert_output --partial /tmp/SC_BATS_TEST
+    rm -r "/tmp/SC_BATS_TEST"
 }
 
 @test "Run Help" {
