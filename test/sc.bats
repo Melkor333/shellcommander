@@ -27,15 +27,12 @@ setup() {
     assert_output --partial 'Usage'
 }
 
-@test "sc init returns path to /tmp" {
+@test "sc init returns and creates path" {
     # TODO: Mock mkdir to be really safe!
     out=$(sc init)
-    [[ "$out" =~ .*'declare -gx SC_PATH="/tmp/'.* ]]
     dir="$(echo $out | cut -d'=' -f 2 | tr -d \")"
     [[ -d "$dir" ]]
     rm -r "$dir"
-    # The following means that we can't properly delete the file!
-    ! [[ -d "$dir" ]]
 }
 
 @test "sc init takes a custom path" {

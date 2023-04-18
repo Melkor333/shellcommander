@@ -3,6 +3,8 @@
 #shopt -u "strict:all" 2>/dev/null || true
 set -e
 
+SC_TEMPLATE="$HOME/.local/share/shellcommander/shells/shell.XXXX"
+
 help() {
     echo TODO
     echo "start by running '$0 init'"
@@ -19,7 +21,8 @@ sc_count() {
 # TODO: Always executed if SC_INITIALIZED!=true or something the like
 init() {
     if [[ -z "$1" ]]; then
-        declare -xg SC_PATH=$(mktemp -d)
+        mkdir -p "${SC_TEMPLATE%/*}"
+        declare -xg SC_PATH=$(mktemp -d "$SC_TEMPLATE")
     else
         declare -xg SC_PATH="$1"
     fi
