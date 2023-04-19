@@ -2,33 +2,12 @@
 
 #shopt -u "strict:all" 2>/dev/null || true
 set -e
-
-SC_TEMPLATE="$HOME/.local/share/shellcommander/shells/shell.XXXX"
+SC_PATH="${SC_PATH:=$HOME/.local/share/shellcommander/shells}"
+SC_TEMPLATE="shell.XXXX"
 
 help() {
     echo TODO
     echo "start by running '$0 init'"
-}
-
-sc_count() {
-    local SC_COUNT
-    SC_COUNT=$(cat "${SC_PATH}/count")
-    ((++SC_COUNT))
-    echo "$SC_COUNT" | tee "${SC_PATH}/count"
-}
-
-# Define required variables
-# TODO: Always executed if SC_INITIALIZED!=true or something the like
-init() {
-    if [[ -z "$1" ]]; then
-        mkdir -p "${SC_TEMPLATE%/*}"
-        declare -xg SC_PATH=$(mktemp -d "$SC_TEMPLATE")
-    else
-        declare -xg SC_PATH="$1"
-    fi
-    mkdir -p "$SC_PATH"
-    echo 0 > "${SC_PATH}/count"
-    printf 'declare -gx SC_PATH="%s"\n' "$SC_PATH"
 }
 
 # Abort if variable is empty/undefined
@@ -67,27 +46,32 @@ _interactive() {
     local OUTPUT="$2"
     local STDERR="$3"
     local EXIT="$4"
-    shift 4;
-    # TODO: Fork away
-    $@ <"$INPUT" >"$OUTPUT" 2>"$STDERR"
+    local _PID="$5"
+    shift 5;
+    $@ <"$INPUT" >"$OUTPUT" 2>"$STDERR" &
+    pid=$!
+    echo "$pid" > $_PID
+    wait "$pid"
     echo $? > "$EXIT"
     rm "$INPUT" || true # We don't care if we can't delete it
 }
 
 # Run a - usually shell - in the background
 start() {
-    SC_COUNT=$(sc_count)
+    SHELL_DIR=$(mktemp -d "${SC_PATH}/${SC_TEMPLATE}")
     # store command
-    echo "$@" > "${SC_PATH}/${SC_COUNT}_command"
-    [[ ! -p "${SC_PATH}/${SC_COUNT}_input" ]] && mkfifo "${SC_PATH}/${SC_COUNT}_input"
+    echo "$@" > "${SHELL_DIR}/shell_command"
+    echo "$SHELL_DIR"
+    [[ ! -p "${SHELL_DIR}/shell_input" ]] && mkfifo "${SHELL_DIR}/shell_input"
     # run command
-    (_interactive "${SC_PATH}/${SC_COUNT}_input" \
-                 "${SC_PATH}/${SC_COUNT}_output" \
-                 "${SC_PATH}/${SC_COUNT}_err" \
-                 "${SC_PATH}/${SC_COUNT}_exit" \
-                 "$@") &
-    echo $! > "${SC_PATH}/${SC_COUNT}_pid"
-    exit
+    # We need to close the stdout file descriptor with >&-. Otherwise '(_interactive x y z) &' will never exit
+    (_interactive "${SHELL_DIR}/shell_input" \
+                 "${SHELL_DIR}/shell_output" \
+                 "${SHELL_DIR}/shell_err" \
+                 "${SHELL_DIR}/shell_exit" \
+                 "${SHELL_DIR}/shell_pid" \
+                 "$@") >&- &
+    # TODO wait until pidfile exists or subshell died
 }
 
 # If sourced. This works only on bash but we don't care. We only test in bats :p
@@ -96,13 +80,14 @@ if ! (return 0 2>/dev/null); then
      help
      exit 1
   fi
-  if [[ "$1" == 'init' ]]; then
-     shift;
-     init "$@"
+  if [[ "$1" == 'help' ]]; then
+     help
      exit 0
   fi
-
-  _require SC_PATH || { help; exit 1; }
+  # Create the SC_PATH if it doesn't exist yet
+  if ! [[ -d "$SC_PATH" ]]; then
+      mkdir -p "$SC_PATH"
+  fi
 
   $@
 fi
