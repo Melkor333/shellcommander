@@ -13,9 +13,13 @@ setup() {
     SC_PATH="${BATS_TEST_TMPDIR}"
 }
 
-# TODO
-#teardown() {
-#}
+teardown_suite() {
+  # this always fails because it gets the PID of the ps itself command aswell..
+  # Otherwise it kills all subprocesses that might be lingering around
+  # It somehow doesn't work when a test fails
+  # Leaving it anyway for users testing without `unshare`
+  kill $(ps -s $$ -o pid=) 2&>/dev/null || true
+}
 
 @test "Run Help" {
     skip
@@ -24,35 +28,65 @@ setup() {
 }
 
 @test "Start a bash in the Background" {
+    local bash_pid shell_path
     # Regarding the 3>&-, see
     # see https://bats-core.readthedocs.io/en/stable/writing-tests.html#file-descriptor-3-read-this-if-bats-hangs
+    shell_path=$(sc start bash 3>&-)
 
-    # TODO: if we `run` it. it hangs :( also x=$(sc start bash) doesn't work sadly
-    local PID SHELL_PATH
-    SHELL_PATH=$(sc start bash 3>-)
-
-    assert_file_exists "${SHELL_PATH}/shell_pid"
-    bash_pid=( $(cat "${SHELL_PATH}/shell_pid") )
+    assert_file_exists "${shell_path}/shell_pid"
+    bash_pid=( $(cat "${shell_path}/shell_pid") )
     # We check too fast for an existing command file :)
 
     # Command is stored
-    assert_file_exists "${SHELL_PATH}/shell_command"
-    assert_file_contains "${SHELL_PATH}/shell_command" 'bash'
+    assert_file_exists "${shell_path}/shell_command"
+    assert_file_contains "${shell_path}/shell_command" 'bash'
     # Input exists
-    assert_fifo_exists "${SHELL_PATH}/shell_input"
+    assert_fifo_exists "${shell_path}/shell_input"
 
     # Output file gets created properly
-    exec 20>"${SHELL_PATH}/shell_input"
+    exec 20>"${shell_path}/shell_input"
     echo 'echo output_file' >&20
-    assert_file_exists "${SHELL_PATH}/shell_output"
-    assert_file_contains "${SHELL_PATH}/shell_output" 'output_file'
+    assert_file_exists "${shell_path}/shell_output"
+    assert_file_contains "${shell_path}/shell_output" 'output_file'
+    echo "pid is: $bash_pid"
+    ps
     assert ps -p $bash_pid > /dev/null
     # Exit
     echo 'exit' >&20
 
     # Command shouldn't exist
     refute ps -p $bash_pid > /dev/null
-    assert_file_exists "${SHELL_PATH}/shell_exit"
-    assert_file_contains "${SHELL_PATH}/shell_exit" '0'
-    assert_file_not_exists "${SHELL_PATH}/shell_input"
+    assert_file_exists "${shell_path}/shell_exit"
+    assert_file_contains "${shell_path}/shell_exit" '0'
+    assert_file_not_exists "${shell_path}/shell_input"
+}
+
+@test "List all open shells" {
+    skip
+
+}
+
+@test "List all shells, including closed" {
+    skip
+
+}
+
+@test "Stop a shell" {
+    skip
+
+}
+
+@test "Run a command in a bash and see the separated output" {
+    local shell_path
+    shell_path=$(sc start bash 3>&-)
+
+    sc run "$shell_path" echo hello
+
+    assert_file_exists "${shell_path}/1_output"
+    assert_file_contains "${shell_path}/1_output" 'hello'
+    assert_file_exists "${shell_path}/1_command"
+    assert_file_contains "${shell_path}/1_command" 'echo hello'
+    assert_file_exists "${shell_path}/1_exit"
+    assert_file_contains "${shell_path}/1_exit" '0'
+
 }

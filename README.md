@@ -1,9 +1,21 @@
+# Usage
+
+Start a very simple bash connection
+```
+./sc start bash
+```
+
 # Testing
 The testing is done with [bats](https://github.com/bats-core/bats-core).
 
-Run the basic `sc` tests:
-```
-test/bats/bin/bats test/sc.bats
+Since processes can be leaked when a test fails, `unshare` is used to make sure everything is cleaned up after a test.
+Run the basic tests:
+
+```shell-session
+# Run the currently only test file `test/sc.bats`:
+./test.sh run sc
+# get help
+./test.sh help
 ```
 
 ## Updating the test framework
