@@ -5,9 +5,24 @@ set -e
 SC_PATH="${SC_PATH:=$HOME/.local/share/shellcommander/shells}"
 SC_TEMPLATE="shell.XXXX"
 
+USAGE="$0 ACTION [FLAGS] [COMMAND]
+
+ACTIONS:
+  start COMMAND             Start a new shell in the background. COMMAND is the shell command you want to run
+
+  list [-a]                 List open shells. with -a: List all existing shell folders
+
+  command SHELL_DIR COMMAND Run a [possibly shell altering] command in a shell.
+                            The COMMAND will be stored to the shell_command and output goes to shell_output
+
+    SHELL_DIR               The full path of the shell directory
+    COMMAND                 The command to run in this subshell
+
+  close SHELL_DIR           Close an open shell (send 'exit' to this shell)
+"
 help() {
-    echo TODO
-    echo "start by running '$0 init'"
+    echo "$USAGE"
+    exit
 }
 
 # Abort if variable is empty/undefined
@@ -58,20 +73,50 @@ _interactive() {
 
 # Run a - usually shell - in the background
 start() {
-    SHELL_DIR=$(mktemp -d "${SC_PATH}/${SC_TEMPLATE}")
+    local shell_dir
+    shell_dir=$(mktemp -d "${SC_PATH}/${SC_TEMPLATE}")
     # store command
-    echo "$@" > "${SHELL_DIR}/shell_command"
-    echo "$SHELL_DIR"
-    [[ ! -p "${SHELL_DIR}/shell_input" ]] && mkfifo "${SHELL_DIR}/shell_input"
+    echo "$@" > "${shell_dir}/shell_command"
+    echo "$shell_dir"
+    [[ ! -p "${shell_dir}/shell_input" ]] && mkfifo "${shell_dir}/shell_input"
     # run command
     # We need to close the stdout file descriptor with >&-. Otherwise '(_interactive x y z) &' will never exit
-    (_interactive "${SHELL_DIR}/shell_input" \
-                 "${SHELL_DIR}/shell_output" \
-                 "${SHELL_DIR}/shell_err" \
-                 "${SHELL_DIR}/shell_exit" \
-                 "${SHELL_DIR}/shell_pid" \
+    (_interactive "${shell_dir}/shell_input" \
+                 "${shell_dir}/shell_output" \
+                 "${shell_dir}/shell_err" \
+                 "${shell_dir}/shell_exit" \
+                 "${shell_dir}/shell_pid" \
                  "$@") >&- &
     # TODO wait until pidfile exists or subshell died
+}
+
+command() {
+    local shell_dir="$1"
+    shift
+    echo "$@" >> "$shell_dir/shell_command"
+    _send_to_fifo "$shell_dir/shell_input" "$@"
+}
+
+close() {
+    local shell_dir="$1"
+    _send_to_fifo "$shell_dir/shell_input" exit
+    # TODO: If the process doesn't exist based on that, kill it with kill, kill -9, etc.
+}
+
+list() {
+    local all=0
+    while getopts "a" arg; do
+        case $arg in
+            a)
+               all=1
+                ;;
+        esac
+    done
+    for dir in "$SC_PATH"/*; do
+        if [[ "$all" -eq 1 ]] || [[ -p "${dir}/shell_input" ]]; then
+            echo "$dir"
+        fi
+    done
 }
 
 # If sourced. This works only on bash but we don't care. We only test in bats :p

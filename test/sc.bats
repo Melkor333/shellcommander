@@ -1,3 +1,6 @@
+# Required for e.g. 'run --partial'
+bats_require_minimum_version 1.5.0
+
 setup() {
     load 'test_helper/bats-support/load'
     load 'test_helper/bats-assert/load'
@@ -10,10 +13,10 @@ setup() {
     # make executables in src/ visible to PATH
     PATH="$DIR/..:$PATH"
     # Set home, as used lateron
-    SC_PATH="${BATS_TEST_TMPDIR}"
+    export SC_PATH="${BATS_TEST_TMPDIR}"
 }
 
-teardown_suite() {
+teardown() {
   # this always fails because it gets the PID of the ps itself command aswell..
   # Otherwise it kills all subprocesses that might be lingering around
   # It somehow doesn't work when a test fails
@@ -22,9 +25,8 @@ teardown_suite() {
 }
 
 @test "Run Help" {
-    skip
-    sc help
-    assert_output --partial 'Usage'
+    run sc help
+    assert_output --partial "ACTION [FLAGS] [COMMAND]"
 }
 
 @test "Start a bash in the Background" {
@@ -61,32 +63,55 @@ teardown_suite() {
     assert_file_not_exists "${shell_path}/shell_input"
 }
 
-@test "List all open shells" {
-    skip
+@test "Stop a shell" {
+    local shell_path
+    shell_path=$(sc start bash 3>&-)
+    bash_pid=( $(cat "${shell_path}/shell_pid") )
 
+    assert ps -p "$bash_pid" > /dev/null
+
+    sc close "$shell_path"
+
+    refute ps -p "$bash_pid" > /dev/null
+}
+
+@test "List all open shells" {
+    local shell_path shell_path2 shell_path3
+    shell_path=$(sc start bash 3>&-)
+    shell_path2=$(sc start bash 3>&-)
+    shell_path3=$(sc start bash 3>&-)
+    sc close "$shell_path3"
+
+    run -0 sc list
+    assert_output --partial "$shell_path"
+    assert_output --partial "$shell_path2"
+    refute_output --partial "$shell_path3"
 }
 
 @test "List all shells, including closed" {
-    skip
+    local shell_path shell_path2 shell_path3
+    shell_path=$(sc start bash 3>&-)
+    shell_path2=$(sc start bash 3>&-)
+    shell_path3=$(sc start bash 3>&-)
+    sc close "$shell_path3"
 
-}
-
-@test "Stop a shell" {
-    skip
-
+    run -0 sc list -a
+    assert_output --partial "$shell_path"
+    assert_output --partial "$shell_path2"
+    assert_output --partial "$shell_path3"
 }
 
 @test "Run a command in a bash and see the separated output" {
     local shell_path
     shell_path=$(sc start bash 3>&-)
 
-    sc run "$shell_path" echo hello
+    sc command "$shell_path" echo hello
 
-    assert_file_exists "${shell_path}/1_output"
-    assert_file_contains "${shell_path}/1_output" 'hello'
-    assert_file_exists "${shell_path}/1_command"
-    assert_file_contains "${shell_path}/1_command" 'echo hello'
-    assert_file_exists "${shell_path}/1_exit"
-    assert_file_contains "${shell_path}/1_exit" '0'
+    assert_file_exists "${shell_path}/shell_output"
+    assert_file_contains "${shell_path}/shell_output" 'hello'
+    assert_file_exists "${shell_path}/shell_command"
+    assert_file_contains "${shell_path}/shell_command" 'echo hello'
+    assert_file_exists "${shell_path}/shell_exit"
+    assert_file_contains "${shell_path}/shell_exit" '0'
 
 }

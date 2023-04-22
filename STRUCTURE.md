@@ -1,5 +1,14 @@
 # Basic commands
 
+There should be 3 kinds of commands:
+- Start or modify a connection (`sc start` and `sc command`)
+- TODO: Start a non-interactive command (`sc run` or `sc`)
+  - Separate output in a file
+  - possibly with input
+- TODO: Start an interactive (tty) command (`sc interactive`)
+  - Separate output, possibly use
+  - definitively with input, attachable
+
 ## Background interactive
 
 `sc start COMMAND`
