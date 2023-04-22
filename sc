@@ -2,8 +2,13 @@
 
 #shopt -u "strict:all" 2>/dev/null || true
 set -e
+
 SC_PATH="${SC_PATH:=$HOME/.local/share/shellcommander/shells}"
-SC_TEMPLATE="shell.XXXX"
+if [[ -z "$SC_DIR" ]]; then
+    # Random number is an ugly hack
+    # Otherwise ISO Date is the best date! (timezone is a bit unnecessary in that case though)
+    SC_DIR="$(date +"%Y-%m-%dT%H:%M:%S%:z")_$RANDOM"
+fi
 
 USAGE="$0 ACTION [FLAGS] [COMMAND]
 
@@ -20,6 +25,7 @@ ACTIONS:
 
   close SHELL_DIR           Close an open shell (send 'exit' to this shell)
 "
+
 help() {
     echo "$USAGE"
     exit
@@ -71,10 +77,12 @@ _interactive() {
     rm "$INPUT" || true # We don't care if we can't delete it
 }
 
-# Run a - usually shell - in the background
+# Run - usually a shell - in the background
 start() {
     local shell_dir
-    shell_dir=$(mktemp -d "${SC_PATH}/${SC_TEMPLATE}")
+    # TODO: parse $1 to catch impossible characters, trim paths, etc.
+    shell_dir="${SC_PATH}/${SC_DIR}"
+    mkdir -p "$shell_dir"
     # store command
     echo "$@" > "${shell_dir}/shell_command"
     echo "$shell_dir"
@@ -90,7 +98,8 @@ start() {
     # TODO wait until pidfile exists or subshell died
 }
 
-command() {
+# Run a command in a shell
+_command() {
     local shell_dir="$1"
     shift
     echo "$@" >> "$shell_dir/shell_command"
@@ -121,18 +130,23 @@ list() {
 
 # If sourced. This works only on bash but we don't care. We only test in bats :p
 if ! (return 0 2>/dev/null); then
-  if [[ -z "$1" ]]; then
-     help
-     exit 1
-  fi
-  if [[ "$1" == 'help' ]]; then
-     help
-     exit 0
-  fi
-  # Create the SC_PATH if it doesn't exist yet
-  if ! [[ -d "$SC_PATH" ]]; then
-      mkdir -p "$SC_PATH"
-  fi
-
-  $@
+    if [[ -z "$1" ]]; then
+        help
+        exit 1
+    fi
+    if [[ "$1" == 'help' ]]; then
+        help
+        exit 0
+    fi
+    # Create the SC_PATH if it doesn't exist yet
+    if ! [[ -d "$SC_PATH" ]]; then
+        mkdir -p "$SC_PATH"
+    fi
+    if [[ "$1" == 'command' ]]; then
+        shift
+        # command is a reserved word :)
+        _command "$@"
+    else
+        $@
+    fi
 fi

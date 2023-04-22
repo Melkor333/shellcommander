@@ -2,6 +2,7 @@
 bats_require_minimum_version 1.5.0
 
 setup() {
+    set -eo pipefail
     load 'test_helper/bats-support/load'
     load 'test_helper/bats-assert/load'
     load 'test_helper/bats-file/load'
@@ -36,6 +37,8 @@ teardown() {
     shell_path=$(sc start bash 3>&-)
 
     assert_file_exists "${shell_path}/shell_pid"
+    # TODO parse rest of ISO time
+    assert_regex "${shell_path##*/}" ".*$(date --iso-8601).*"
     bash_pid=( $(cat "${shell_path}/shell_pid") )
     # We check too fast for an existing command file :)
 
