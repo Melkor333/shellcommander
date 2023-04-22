@@ -28,7 +28,6 @@ ACTIONS:
 
 help() {
     echo "$USAGE"
-    exit
 }
 
 # Abort if variable is empty/undefined
@@ -127,6 +126,8 @@ list() {
         fi
     done
 }
+# ls is an alias of list :)
+ls() { list $@; }
 
 # If sourced. This works only on bash but we don't care. We only test in bats :p
 if ! (return 0 2>/dev/null); then

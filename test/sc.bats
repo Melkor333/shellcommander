@@ -26,7 +26,11 @@ teardown() {
 }
 
 @test "Run Help" {
-    run sc help
+    run -0 sc help
+    assert_output --partial "ACTION [FLAGS] [COMMAND]"
+
+    # No params should also
+    run -1 sc
     assert_output --partial "ACTION [FLAGS] [COMMAND]"
 }
 
@@ -60,7 +64,7 @@ teardown() {
     echo 'exit' >&20
 
     # Command shouldn't exist
-    refute ps -p $bash_pid > /dev/null
+    refute ps -p $bash_pid > /dev/null # Sometimes that fails
     assert_file_exists "${shell_path}/shell_exit"
     assert_file_contains "${shell_path}/shell_exit" '0'
     assert_file_not_exists "${shell_path}/shell_input"
