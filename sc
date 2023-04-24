@@ -30,6 +30,17 @@ help() {
     echo "$USAGE"
 }
 
+# Trap functions
+
+_clean_exit() {
+    kill "$pid"
+    # TODO: Maybe something like this, but properly capture the exitcodes
+    #timeout 5 wait "$pid"
+    #kill -9 "$pid"
+    echo $? > "$EXIT"
+    rm "$INPUT" || true # We don't care if we can't delete it
+}
+
 # Abort if variable is empty/undefined
 _require() {
     if [[ -z "${!1}" ]]; then
@@ -68,12 +79,18 @@ _interactive() {
     local EXIT="$4"
     local _PID="$5"
     shift 5;
-    $@ <"$INPUT" >"$OUTPUT" 2>"$STDERR" &
+    # Sadly forces us to use bash4
+    mypid=$BASHPID
+    # Start traps for communication
+    trap _clean_exit EXIT
+    exec 20>"$OUTPUT" 21>"$STDERR"
+    $@ <"$INPUT" >&20 2>&21 &
     pid=$!
-    echo "$pid" > $_PID
+    echo "$mypid" > "$_PID"
     wait "$pid"
     echo $? > "$EXIT"
     rm "$INPUT" || true # We don't care if we can't delete it
+    trap - EXIT
 }
 
 # Run - usually a shell - in the background
@@ -106,8 +123,18 @@ _command() {
 }
 
 close() {
-    local shell_dir="$1"
+    local shell_dir="$1" pid
+    pid=$(cat "$shell_dir/shell_pid")
     _send_to_fifo "$shell_dir/shell_input" exit
+    # Wait for the process to die or kill it.
+    # Hacky workaround for things not accepting 'exit'
+    # Also makes sure we only exit after $pid has finished
+    if ! timeout 5s tail --pid=$pid -f /dev/null; then
+       kill "$pid"
+       if ! timeout 5s tail --pid=$pid -f /dev/null; then
+           kill -9 "$pid"
+       fi
+    fi
     # TODO: If the process doesn't exist based on that, kill it with kill, kill -9, etc.
 }
 
