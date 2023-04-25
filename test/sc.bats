@@ -108,7 +108,7 @@ teardown() {
     assert_output --partial "$shell_path3"
 }
 
-@test "Run a command in a bash and see the separated output" {
+@test "Run a command in a bash and see the output" {
     local shell_path
     shell_path=$(sc start bash 3>&-)
 

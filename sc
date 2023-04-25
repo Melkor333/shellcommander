@@ -38,7 +38,7 @@ _clean_exit() {
     #timeout 5 wait "$pid"
     #kill -9 "$pid"
     echo $? > "$EXIT"
-    rm "$INPUT" || true # We don't care if we can't delete it
+    rm "$INPUT" || true # We don't care if we can't delete it, e.g. it has already been removed
 }
 
 # Abort if variable is empty/undefined
@@ -83,10 +83,18 @@ _interactive() {
     mypid=$BASHPID
     # Start traps for communication
     trap _clean_exit EXIT
-    exec 20>"$OUTPUT" 21>"$STDERR"
-    $@ <"$INPUT" >&20 2>&21 &
-    pid=$!
+    # Open files
     echo "$mypid" > "$_PID"
+
+    # The exec causes the parent process to close. This must come after writing the pidfile
+    # I don't fully understand why I don't have to actively close STDIN (e.g. <&-) but here we are..
+    # In some cases it hung when I didn't use <&19- lateron and only <&19. But the parent process still exits right after this exec.
+    exec 20>>"$OUTPUT" 21>>"$STDERR" 19<"$INPUT"
+
+    # Move the file descriptors for the subcommand
+    $@ <&19- >&20- 2>&21- &
+
+    pid=$!
     wait "$pid"
     echo $? > "$EXIT"
     rm "$INPUT" || true # We don't care if we can't delete it
@@ -104,7 +112,7 @@ start() {
     echo "$shell_dir"
     [[ ! -p "${shell_dir}/shell_input" ]] && mkfifo "${shell_dir}/shell_input"
     # run command
-    # We need to close the stdout file descriptor with >&-. Otherwise '(_interactive x y z) &' will never exit
+    # We need to close the stdin and stdout. Otherwise it will wait for it even with the &
     (_interactive "${shell_dir}/shell_input" \
                  "${shell_dir}/shell_output" \
                  "${shell_dir}/shell_err" \
